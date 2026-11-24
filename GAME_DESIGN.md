@@ -41,3 +41,9 @@ Stats (HP / damage / speed / range) live in `Config` so they are easy to tune.
 5. Coins + army size upgrade + HUD
 6. PvP zone
 7. More creatures/levels, shop, saving
+
+## Built so far (v2)
+- Map: corridor (green studded floor, red brick walls) along -Z; Cat arena = brown dirt patch at the far end.
+- Army units fight: nearest creature in 70 studs, stand at their range, attack at their rate (server-side via Combat module).
+- Cat (Lv1, easiest): never attacks. Wanders 4 s, digs underground (immune while hidden ~3.5 s + dirt mound), pops up elsewhere. 600 HP, 20 coins to everyone who damaged it, respawns after 8 s.
+- Coins in leaderstats.

@@ -5,6 +5,20 @@ local RS = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(RS:WaitForChild("Config"))
+local Combat = require(script.Parent:WaitForChild("Combat"))
+local creatures = workspace:WaitForChild("Creatures")
+
+-- nearest creature that is alive and not hiding
+local function nearestEnemy(pos)
+	local best, bd = nil, 70
+	for _, c in creatures:GetChildren() do
+		if c:IsA("Model") and c.PrimaryPart and (c:GetAttribute("Hp") or 0) > 0 and not c:GetAttribute("Hidden") then
+			local d = (c.PrimaryPart.Position - pos).Magnitude
+			if d < bd then best, bd = c, d end
+		end
+	end
+	return best
+end
 
 local armies = {} -- player -> {units = {model, ...}}
 
@@ -101,7 +115,7 @@ local function syncArmy(player)
 end
 
 local function setupPlayer(player)
-	armies[player] = {units = {}}
+	armies[player] = {units = {}, last = setmetatable({}, {__mode = "k"})}
 	player:SetAttribute("ArmySize", Config.StartArmySize)
 	player:GetAttributeChangedSignal("ArmySize"):Connect(function() syncArmy(player) end)
 	syncArmy(player)
@@ -130,6 +144,7 @@ RunService.Heartbeat:Connect(function(dt)
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if not root then continue end
 		syncArmy(player)
+		local enemy = nearestEnemy(root.Position)
 		for i, m in a.units do
 			local def = Config.Units[m:GetAttribute("Kind")]
 			local x, z = slotOffset(i)
@@ -137,6 +152,23 @@ RunService.Heartbeat:Connect(function(dt)
 			if def.Flying then ground += 3 + math.sin(t * 3 + i) * 0.6 end
 			local target = (root.CFrame * CFrame.new(x, 0, z)).Position
 			target = Vector3.new(target.X, ground, target.Z)
+			local attacking = false
+			if enemy and enemy.Parent and enemy.PrimaryPart then
+				-- go fight: stand at the unit's range from the enemy and attack
+				local ep = enemy.PrimaryPart.Position
+				local cur0 = m:GetPivot().Position
+				local away = Vector3.new(cur0.X - ep.X, 0, cur0.Z - ep.Z)
+				if away.Magnitude < 0.1 then away = Vector3.new(x + 0.1, 0, z) end
+				local stand = ep + away.Unit * (def.Range * 0.7 + 3.5)
+				target = Vector3.new(stand.X, ground, stand.Z)
+				if away.Magnitude <= def.Range + 4.5 then
+					attacking = true
+					if os.clock() - (a.last[m] or 0) >= def.AttackRate then
+						a.last[m] = os.clock()
+						Combat.Damage(enemy, def.Damage, player)
+					end
+				end
+			end
 			local cur = m:GetPivot()
 			local dist = (target - cur.Position).Magnitude
 			local speed = math.max(def.Speed, dist * 3) -- catch up when far
@@ -144,6 +176,10 @@ RunService.Heartbeat:Connect(function(dt)
 			local pos = dist > 0.01 and (cur.Position + (target - cur.Position).Unit * step) or cur.Position
 			-- face where the player faces
 			local look = root.CFrame.LookVector
+			if attacking then
+				local e = enemy.PrimaryPart.Position - pos
+				if e.Magnitude > 0.1 then look = Vector3.new(e.X, 0, e.Z) end
+			end
 			m:PivotTo(CFrame.lookAt(pos, pos + Vector3.new(look.X, 0, look.Z)))
 		end
 	end

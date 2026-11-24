@@ -21,7 +21,8 @@ Config.UnitOrder = {"Knight", "Boxer", "Bee", "Spider"}
 
 -- Creatures (level 1 = easiest)
 Config.Creatures = {
-	Cat = {Level = 1, Hp = 300, Reward = 20, SlamDamage = 10, SlamRadius = 14, SlamEvery = 5, HideEvery = 12, HideTime = 4},
+-- The Cat never attacks: it digs underground to hide (can't be hit), then pops up elsewhere.
+	Cat = {Level = 1, Hp = 600, Reward = 20, SurfaceTime = 4, HideTime = 3.5, WalkSpeed = 9},
 }
 
 return Config
